@@ -125,8 +125,8 @@ public class RelocationAllocationService {
             return plan;
         }
 
-        int totalAvailableCapacity = 0;
-        int totalCapacityUtilized = 0;
+        long totalAvailableCapacity = 0;
+        long totalCapacityUtilized = 0;
         int sitesUtilized = 0;
         List<RelocationAssignmentDto> assignments = new ArrayList<>();
 
@@ -135,7 +135,7 @@ public class RelocationAllocationService {
             if (site == null) continue;
 
             Integer siteAvail = site.getAvailableCapacity();
-            if (siteAvail != null) {
+            if (siteAvail != null && siteAvail > 0) {
                 totalAvailableCapacity += siteAvail;
             }
 
@@ -157,7 +157,7 @@ public class RelocationAllocationService {
 
             if (toAllocate > 0) {
                 remainingPopulation -= toAllocate;
-                totalCapacityUtilized += (int) toAllocate;
+                totalCapacityUtilized += toAllocate;
                 sitesUtilized++;
 
                 RelocationStatus assignmentStatus = (remainingPopulation == 0 && (initialPopulation - remainingPopulation) == initialPopulation)
@@ -186,8 +186,8 @@ public class RelocationAllocationService {
         plan.setTotalUnallocatedPopulation(remainingPopulation);
         plan.setTotalCandidateSitesEvaluated(rankedSites.size());
         plan.setTotalCandidateSitesUtilized(sitesUtilized);
-        plan.setTotalCapacityAvailable(totalAvailableCapacity);
-        plan.setTotalCapacityUtilized(totalCapacityUtilized);
+        plan.setTotalCapacityAvailable((int) Math.min((long) Integer.MAX_VALUE, totalAvailableCapacity));
+        plan.setTotalCapacityUtilized((int) Math.min((long) Integer.MAX_VALUE, totalCapacityUtilized));
         plan.setAssignments(assignments);
 
         if (initialPopulation > 0) {

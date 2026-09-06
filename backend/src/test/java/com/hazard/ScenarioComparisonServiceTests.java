@@ -29,7 +29,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * Stage 9E — Unit and Integration Service Tests for Before/After Scenario Comparison.
  */
 @SpringBootTest
-@Transactional
 class ScenarioComparisonServiceTests {
 
     @Autowired

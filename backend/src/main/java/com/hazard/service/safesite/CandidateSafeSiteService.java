@@ -137,7 +137,7 @@ public class CandidateSafeSiteService {
 
         List<String> activeHighRiskDistricts = highRiskDistricts != null
                 ? highRiskDistricts
-                : (cachedHighRiskDistricts.isEmpty() ? Collections.emptyList() : new ArrayList<>(cachedHighRiskDistricts));
+                : resolveActiveHighRiskDistricts();
 
         List<InfrastructureAssetDto> healthcareFacilities = allFacilities.stream()
                 .filter(f -> f.getCategory() == InfrastructureCategory.HEALTHCARE)
@@ -420,7 +420,7 @@ public class CandidateSafeSiteService {
 
     public List<String> resolveActiveHighRiskDistricts() {
         long now = System.currentTimeMillis();
-        if (now - lastHighRiskCacheClear <= HIGH_RISK_CACHE_TTL_MS && !cachedHighRiskDistricts.isEmpty()) {
+        if (lastHighRiskCacheClear > 0 && now - lastHighRiskCacheClear <= HIGH_RISK_CACHE_TTL_MS) {
             return new ArrayList<>(cachedHighRiskDistricts);
         }
 

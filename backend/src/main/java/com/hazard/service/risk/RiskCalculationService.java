@@ -55,6 +55,12 @@ public class RiskCalculationService {
     private final RiskConfigurationService riskConfigurationService;
     private final RiskCalculationEngine engine;
 
+    // Cache for district risk scores and all-districts evaluations (TTL: 5m)
+    private final Map<String, DistrictRiskScoreDto> districtScoreCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private final List<DistrictRiskScoreDto> allDistrictsScoreCache = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private volatile long lastAllDistrictsCacheClear = 0L;
+    private static final long CACHE_TTL_MS = 300_000L;
+
     public RiskCalculationService(DistrictBoundaryRepository districtBoundaryRepository,
                                   HazardScoringService hazardScoringService,
                                   PopulationExposureService populationExposureService,
@@ -85,6 +91,13 @@ public class RiskCalculationService {
         }
 
         String targetDistrict = districtName.trim();
+        if (customWeights == null) {
+            DistrictRiskScoreDto cached = districtScoreCache.get(targetDistrict.toUpperCase());
+            if (cached != null) {
+                return cached;
+            }
+        }
+
         DistrictBoundary boundary = districtBoundaryRepository.findByName2IgnoreCase(targetDistrict)
                 .orElseThrow(() -> new HazardNotFoundException("Administrative district not found: " + targetDistrict));
 
@@ -220,7 +233,9 @@ public class RiskCalculationService {
         riskResult.setState(boundary.getName1() != null ? boundary.getName1() : "Bihar");
         riskResult.setConfigurationId(activeProfile.getConfigId());
         riskResult.setConfigurationVersion(activeProfile.getVersion());
-        riskResult.setConfigurationName(activeProfile.getName());
+        if (customWeights == null) {
+            districtScoreCache.put(targetDistrict.toUpperCase(), riskResult);
+        }
 
         return riskResult;
     }
@@ -272,6 +287,11 @@ public class RiskCalculationService {
     // =========================================================================
 
     public List<DistrictRiskScoreDto> getAllDistrictsRiskScores() {
+        long now = System.currentTimeMillis();
+        if (now - lastAllDistrictsCacheClear <= CACHE_TTL_MS && !allDistrictsScoreCache.isEmpty()) {
+            return new ArrayList<>(allDistrictsScoreCache);
+        }
+
         List<DistrictBoundary> districts = districtBoundaryRepository.findAllByOrderByName2Asc();
         List<DistrictRiskScoreDto> list = new ArrayList<>();
 
@@ -283,7 +303,17 @@ public class RiskCalculationService {
                 log.warn("Error computing risk for district {}: {}", db.getName2(), e.getMessage());
             }
         }
+
+        allDistrictsScoreCache.clear();
+        allDistrictsScoreCache.addAll(list);
+        lastAllDistrictsCacheClear = now;
         return list;
+    }
+
+    public void clearCache() {
+        districtScoreCache.clear();
+        allDistrictsScoreCache.clear();
+        lastAllDistrictsCacheClear = 0L;
     }
 
     // =========================================================================

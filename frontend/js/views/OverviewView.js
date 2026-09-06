@@ -203,11 +203,6 @@ export class OverviewView {
                     <h3>Evacuation Decision Support</h3>
                     <p>Automated relocation recommendations are active for ${this.state.district}.</p>
                 </div>
-                <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
-                    <button type="button" class="btn btn-sm btn-outline" id="bannerOpenSimBtn" onclick="window.__openSimulationModal && window.__openSimulationModal()">⚡ What-If Simulation</button>
-                    <a href="#/map" class="btn btn-sm btn-primary">Open GIS Spatial Map</a>
-                    <a href="#/relocation" class="btn btn-sm btn-secondary">Review Decision Queue</a>
-                </div>
             </div>
         `;
 
@@ -423,7 +418,6 @@ export class OverviewView {
         // What-If Simulation triggers
         window.__openSimulationModal = () => SimulationModal.open({ district: this.state.district || "Sitamarhi" });
         document.getElementById("headerOpenSimBtn")?.addEventListener("click", () => window.__openSimulationModal());
-        document.getElementById("bannerOpenSimBtn")?.addEventListener("click", () => window.__openSimulationModal());
 
         // Explainability triggers
         const explainBtns = document.querySelectorAll(".explain-decision-btn");
