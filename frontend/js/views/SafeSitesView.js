@@ -38,7 +38,8 @@ export class SafeSitesView {
             selectedCategory: "ALL",
             selectedSuitability: "ALL",
             searchTerm: "",
-            activeModalSite: null
+            activeModalSite: null,
+            usingFallbackData: false
         };
     }
 
@@ -71,6 +72,9 @@ export class SafeSitesView {
 
             if (!sites || sites.length === 0) {
                 sites = MOCK_SAFE_SITES;
+                this.state.usingFallbackData = true;
+            } else {
+                this.state.usingFallbackData = false;
             }
 
             this.state.sites = sites;
@@ -80,7 +84,8 @@ export class SafeSitesView {
             this.renderContent();
         } catch (err) {
             console.error("[SafeSitesView] Error loading safe sites:", err);
-            // Resilient fallback to mock data
+            // Resilient demo fallback; the UI labels these fixtures explicitly.
+            this.state.usingFallbackData = true;
             this.state.sites = MOCK_SAFE_SITES;
             this.state.filteredSites = [...MOCK_SAFE_SITES];
             this.state.isLoading = false;
@@ -119,6 +124,13 @@ export class SafeSitesView {
         if (typeof document === "undefined") return "";
         const dynamicContainer = document.getElementById("safe-sites-dynamic-container");
         if (!dynamicContainer) return;
+
+        const fallbackNoticeHtml = this.state.usingFallbackData ? `
+            <div role="status" style="padding: 12px 16px; border: 1px solid var(--border-default); border-left: 3px solid var(--status-warning-text); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-secondary); font-size: 0.82rem;">
+                <strong style="color: var(--text-primary);">Demo fallback data active.</strong>
+                Sample safe-site and capacity figures are displayed because the live API returned no usable site records. Verify live service and database data before relying on these figures.
+            </div>
+        ` : "";
 
         const headerHtml = PageHeader.render({
             title: "Safe Shelter Directory & Capacity",
@@ -218,6 +230,7 @@ export class SafeSitesView {
 
         dynamicContainer.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: var(--space-5);">
+                ${fallbackNoticeHtml}
                 ${headerHtml}
                 ${kpisHtml}
                 ${SectionHeader.render({
