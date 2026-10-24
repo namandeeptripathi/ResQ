@@ -1,17 +1,19 @@
 {
-  "name": "hazard-decision-frontend",
+  "name": "resq-frontend",
   "version": "1.0.0",
-  "description": "National Disaster Decision Support & Relocation Intelligence Frontend (Stage 8A)",
+  "description": "ResQ geospatial disaster intelligence and relocation decision-support frontend",
   "type": "module",
   "scripts": {
     "test": "node test/runTests.js"
   },
   "keywords": [
+    "resq",
     "disaster-management",
+    "geospatial-analysis",
     "relocation-intelligence",
     "decision-support",
     "sih"
   ],
-  "author": "Antigravity Engineering",
+  "author": "ResQ Contributors",
   "license": "UNLICENSED"
 }
