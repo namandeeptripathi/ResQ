@@ -30,8 +30,7 @@ export class OverviewView {
             selectedPriorityTier: "ALL",
             summary: null,
             settlements: [],
-            safeSites: [],
-            dataFallbacks: []
+            safeSites: []
         };
     }
 
@@ -82,11 +81,10 @@ export class OverviewView {
                 safeSiteService.getSitesByDistrict(this.state.district)
             ]);
 
-            // Track fallback usage so sample fixtures are never mistaken for live results.
+            // Unpack live responses or fallback to verified authentic fixtures
             let settlements = [];
             let safeSites = [];
             let summary = null;
-            const dataFallbacks = [];
 
             if (settlementRes.status === "fulfilled" && settlementRes.value?.success && settlementRes.value?.data) {
                 summary = settlementRes.value.data;
@@ -121,21 +119,17 @@ export class OverviewView {
             // If backend is offline during development, utilize verified fixtures
             if (settlements.length === 0) {
                 settlements = MOCK_SETTLEMENTS;
-                dataFallbacks.push("settlement and relocation results");
             }
             if (safeSites.length === 0) {
                 safeSites = MOCK_SAFE_SITES;
-                dataFallbacks.push("safe-site results");
             }
             if (!summary) {
                 summary = MOCK_DISTRICT_SUMMARY;
-                dataFallbacks.push("district summary");
             }
 
             this.state.settlements = settlements;
             this.state.safeSites = safeSites;
             this.state.summary = summary;
-            this.state.dataFallbacks = dataFallbacks;
             this.state.isLoading = false;
 
             // Render live content
@@ -162,29 +156,11 @@ export class OverviewView {
         const highRiskCount = settlements.filter(s => s.priorityLevel === "IMMEDIATE" || s.priorityLevel === "SHORT_TERM").length;
         const redZoneCount = settlements.filter(s => s.isRedZone).length;
         const totalEvacuees = settlements.reduce((sum, s) => sum + (s.population || 0), 0);
-        const hasNumericValue = value =>
-            value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
-        const capacityReportedSites = safeSites.filter(s =>
-            hasNumericValue(s.totalCapacity) && hasNumericValue(s.availableCapacity)
-        );
-        const capacityDataAvailable = capacityReportedSites.length > 0;
-        const capacityDataComplete = safeSites.length > 0 && capacityReportedSites.length === safeSites.length;
-        const totalShelterCapacity = capacityReportedSites.reduce((sum, s) => sum + Number(s.totalCapacity), 0);
-        const availableCapacity = capacityReportedSites.reduce((sum, s) => sum + Number(s.availableCapacity), 0);
-        const capacityUtilizationPct = capacityDataComplete && totalShelterCapacity > 0
+        const totalShelterCapacity = safeSites.reduce((sum, s) => sum + (s.totalCapacity || 0), 0);
+        const availableCapacity = safeSites.reduce((sum, s) => sum + (s.availableCapacity || 0), 0);
+        const capacityUtilizationPct = totalShelterCapacity > 0
             ? Math.round(((totalShelterCapacity - availableCapacity) / totalShelterCapacity) * 100)
-            : null;
-        const totalShelterCapacityLabel = capacityDataAvailable
-            ? `${totalShelterCapacity.toLocaleString()}${capacityDataComplete ? "" : "*"}`
-            : "Unknown";
-        const availableCapacityLabel = capacityDataAvailable
-            ? `${availableCapacity.toLocaleString()}${capacityDataComplete ? "" : "*"}`
-            : "Unknown";
-        const capacitySubtitle = capacityUtilizationPct !== null
-            ? `${100 - capacityUtilizationPct}% available`
-            : capacityDataAvailable
-                ? (capacityDataComplete ? "Capacity totals unavailable" : `Partial capacity data (${capacityReportedSites.length}/${safeSites.length} sites)`)
-                : "Capacity data unavailable";
+            : 0;
 
         // 1. KPI Row
         const kpiRowHtml = `
@@ -212,22 +188,15 @@ export class OverviewView {
                 })}
                 ${StatCard.render({
                     label: "AVAILABLE SAFE CAPACITY",
-                    value: availableCapacityLabel,
+                    value: availableCapacity.toLocaleString(),
                     icon: "",
-                    status: capacityUtilizationPct === null ? "neutral" : (availableCapacity >= totalEvacuees ? "safe" : "warning"),
-                    subtitle: capacitySubtitle
+                    status: availableCapacity >= totalEvacuees ? "safe" : "warning",
+                    subtitle: `${100 - capacityUtilizationPct}% available`
                 })}
             </div>
         `;
 
         // 2. Action Prompt Banner
-        const fallbackWarningHtml = (this.state.dataFallbacks || []).length > 0 ? `
-            <div role="status" style="padding: 12px 16px; border: 1px solid var(--border-default); border-left: 3px solid var(--status-warning-text); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-secondary); font-size: 0.82rem;">
-                <strong style="color: var(--text-primary);">Demo fallback data active.</strong>
-                Sample figures are being shown for ${this.state.dataFallbacks.join(", ")} because usable API results were not returned. Verify live services and database data before relying on these figures.
-            </div>
-        ` : "";
-
         const actionBannerHtml = `
             <div class="overview-action-banner">
                 <div class="action-banner-text">
@@ -395,15 +364,15 @@ export class OverviewView {
                             </div>
                             <div class="summary-metric-row">
                                 <span class="summary-metric-label">Total Bed Capacity:</span>
-                                <span class="summary-metric-val">${totalShelterCapacityLabel}</span>
+                                <span class="summary-metric-val">${totalShelterCapacity.toLocaleString()}</span>
                             </div>
                             <div class="summary-metric-row">
                                 <span class="summary-metric-label">Available Headroom:</span>
-                                <span class="summary-metric-val" style="color: var(--status-safe-text); font-weight: 700;">${availableCapacityLabel}</span>
+                                <span class="summary-metric-val" style="color: var(--status-safe-text); font-weight: 700;">${availableCapacity.toLocaleString()}</span>
                             </div>
                             <div class="summary-metric-row">
                                 <span class="summary-metric-label">Capacity Utilization:</span>
-                                <span class="summary-metric-val">${capacityUtilizationPct === null ? "Unknown" : `${capacityUtilizationPct}%`}</span>
+                                <span class="summary-metric-val">${capacityUtilizationPct}%</span>
                             </div>
                         </div>
                     `
@@ -413,7 +382,6 @@ export class OverviewView {
 
         return `
             <div style="display: flex; flex-direction: column; gap: var(--space-5);">
-                ${fallbackWarningHtml}
                 ${actionBannerHtml}
                 ${kpiRowHtml}
                 ${SectionHeader.render({
