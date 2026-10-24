@@ -12,8 +12,8 @@ import org.springframework.context.annotation.Configuration;
 import java.util.List;
 
 /**
- * SpringDoc OpenAPI 3 Configuration for Stage 3 Hazard Intelligence API.
- * Defines API metadata, contact info, license, and logical OpenAPI groupings.
+ * OpenAPI configuration for ResQ's hazard intelligence APIs.
+ * Defines API metadata, contact information, license, and logical API groupings.
  */
 @Configuration
 public class OpenApiConfig {
@@ -22,15 +22,14 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Smart Hazard Risk Prediction & Relocation System - Hazard Intelligence API")
-                        .description("Stage 3 Hazard Intelligence REST APIs providing integrated multi-source observations, " +
-                                "data cleaning and temporal aggregation, scientific indicator normalization, " +
-                                "single-hazard scoring, multi-hazard spatial-temporal coincidence indices, " +
+                        .title("ResQ — Geospatial Disaster Intelligence & Relocation API")
+                        .description("ResQ REST APIs for multi-source hazard observations, data cleaning and temporal aggregation, " +
+                                "indicator normalization, configurable hazard-risk scoring, multi-hazard spatial-temporal analysis, " +
                                 "and map-ready RFC 7946 GeoJSON GIS layers.")
                         .version("1.0.0 (Stage 3.7)")
                         .contact(new Contact()
-                                .name("Smart India Hackathon (SIH) 2026 Team")
-                                .url("https://github.com/NamandeepTripathi/Hazard-Project"))
+                                .name("ResQ Project")
+                                .url("https://github.com/namandeeptripathi/ResQ"))
                         .license(new License()
                                 .name("Apache 2.0")
                                 .url("https://www.apache.org/licenses/LICENSE-2.0.html")))
@@ -42,7 +41,7 @@ public class OpenApiConfig {
     @Bean
     public GroupedOpenApi hazardAllApi() {
         return GroupedOpenApi.builder()
-                .group("1. All Hazard APIs")
+                .group("1. All ResQ Hazard APIs")
                 .pathsToMatch("/api/v1/hazards/**")
                 .build();
     }
