@@ -1,7 +1,7 @@
 {
-  "name": "hazard-project",
+  "name": "resq",
   "version": "1.0.0",
-  "description": "Smart Hazard Risk Prediction and Relocation System",
+  "description": "Geospatial Disaster Intelligence and Response Platform",
   "scripts": {
     "start": "./start.sh",
     "test": "cd frontend && npm test",
