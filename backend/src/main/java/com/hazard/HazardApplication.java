@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * Smart Hazard Risk Prediction and Relocation System
+ * ResQ — Geospatial Disaster Intelligence & Response Platform
  * SIH 2026 - Problem Statement ID: SIH26191
  *
- * Backend Application Entry Point (Modular Monolith)
+ * Backend application entry point (modular monolith).
  */
 @SpringBootApplication
 public class HazardApplication {
