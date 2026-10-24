@@ -50,5 +50,19 @@ export async function runOverviewTests() {
     assert.ok(dashboardHtml.includes("Evacuation Readiness"), "Should render Evacuation Readiness card");
     assert.ok(dashboardHtml.includes("Shelter Logistics Balance"), "Should render Shelter Logistics Balance card");
 
+    // Test 6: Missing live capacity must be shown as unknown, not zero or 100% available.
+    const originalSafeSites = view.state.safeSites;
+    view.state.safeSites = [{
+        siteId: "SITE-UNKNOWN",
+        siteName: "Site with unknown capacity",
+        totalCapacity: null,
+        availableCapacity: null
+    }];
+    const unknownCapacityHtml = view.renderDashboardContent();
+    assert.ok(unknownCapacityHtml.includes("Unknown"), "Unknown capacity should not be rendered as zero");
+    assert.ok(unknownCapacityHtml.includes("Capacity data unavailable"), "Dashboard should explain missing capacity data");
+    assert.ok(!unknownCapacityHtml.includes("100% available"), "Dashboard must not imply full availability without data");
+    view.state.safeSites = originalSafeSites;
+
     console.log("  ✅ All Command Center Tests Passed.");
 }
