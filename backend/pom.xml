@@ -13,8 +13,8 @@
     <groupId>com.hazard</groupId>
     <artifactId>hazard-backend</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <name>hazard-backend</name>
-    <description>Smart Hazard Risk Prediction and Relocation System - Backend Service</description>
+    <name>ResQ Backend</name>
+    <description>ResQ backend service for geospatial disaster intelligence and relocation decision support</description>
 
     <properties>
         <java.version>21</java.version>
