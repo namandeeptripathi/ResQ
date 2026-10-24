@@ -118,7 +118,7 @@ export class SettlementDetailView {
             }
 
             // Update title
-            document.title = `Disaster Decision Support | ${matchedSettlement.settlementName}`;
+            document.title = `ResQ | ${matchedSettlement.settlementName}`;
 
             // Render complete dashboard content
             container.innerHTML = this.renderSettlementContent(matchedSettlement, matchedSafeSite);

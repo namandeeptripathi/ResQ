@@ -9,12 +9,65 @@
 import { apiClient } from "../apiClient.js";
 import { API_CONFIG } from "../config.js";
 
+const hasNumericValue = (value) =>
+    value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+
+export function normalizeSafeSite(site) {
+    if (!site) return site;
+
+    const totalCapacity = hasNumericValue(site.totalCapacity)
+        ? Number(site.totalCapacity)
+        : hasNumericValue(site.capacity) ? Number(site.capacity) : null;
+
+    let allocatedCapacity = hasNumericValue(site.allocatedCapacity)
+        ? Number(site.allocatedCapacity)
+        : hasNumericValue(site.allocatedOccupancy) ? Number(site.allocatedOccupancy) : null;
+
+    let availableCapacity = hasNumericValue(site.availableCapacity)
+        ? Number(site.availableCapacity)
+        : null;
+
+    if (availableCapacity === null && totalCapacity !== null && allocatedCapacity !== null) {
+        availableCapacity = Math.max(0, totalCapacity - allocatedCapacity);
+    }
+    if (allocatedCapacity === null && totalCapacity !== null && availableCapacity !== null) {
+        allocatedCapacity = Math.max(0, totalCapacity - availableCapacity);
+    }
+
+    return {
+        ...site,
+        name: site.name || site.siteName || site.assetName || site.siteId || "Unnamed site",
+        totalCapacity,
+        allocatedCapacity,
+        availableCapacity
+    };
+}
+
+function normalizeSafeSiteResponse(response) {
+    if (!response?.success || response.data == null) return response;
+
+    if (Array.isArray(response.data)) {
+        return { ...response, data: response.data.map(normalizeSafeSite) };
+    }
+    if (Array.isArray(response.data.sites)) {
+        return {
+            ...response,
+            data: {
+                ...response.data,
+                sites: response.data.sites.map(normalizeSafeSite)
+            }
+        };
+    }
+    return response;
+}
+
 export const safeSiteService = {
     /**
      * Fetches safe sites for a specific district.
      */
     async getSitesByDistrict(district = "Sitamarhi") {
-        return apiClient.get(API_CONFIG.ENDPOINTS.SAFE_SITES.DISTRICT(district));
+        const response = await apiClient.get(API_CONFIG.ENDPOINTS.SAFE_SITES.DISTRICT(district));
+        return normalizeSafeSiteResponse(response);
     },
 
     /**
@@ -27,7 +80,8 @@ export const safeSiteService = {
             radiusKm: maxDistanceKm.toString(),
             minSuitability
         });
-        return apiClient.get(`${API_CONFIG.ENDPOINTS.SAFE_SITES.CANDIDATES}?${params.toString()}`);
+        const response = await apiClient.get(`${API_CONFIG.ENDPOINTS.SAFE_SITES.CANDIDATES}?${params.toString()}`);
+        return normalizeSafeSiteResponse(response);
     },
 
     /**

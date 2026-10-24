@@ -22,7 +22,7 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("ResQ — Geospatial Disaster Intelligence & Relocation API")
+                        .title("ResQ — Geospatial Disaster Intelligence & Response Platform (Hazard Intelligence API)")
                         .description("ResQ REST APIs for multi-source hazard observations, data cleaning and temporal aggregation, " +
                                 "indicator normalization, configurable hazard-risk scoring, multi-hazard spatial-temporal analysis, " +
                                 "and map-ready RFC 7946 GeoJSON GIS layers.")

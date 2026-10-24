@@ -30,7 +30,8 @@ export class OverviewView {
             selectedPriorityTier: "ALL",
             summary: null,
             settlements: [],
-            safeSites: []
+            safeSites: [],
+            dataFallbacks: []
         };
     }
 
@@ -81,10 +82,11 @@ export class OverviewView {
                 safeSiteService.getSitesByDistrict(this.state.district)
             ]);
 
-            // Unpack live responses or fallback to verified authentic fixtures
+            // Track fallback usage so sample fixtures are never mistaken for live results.
             let settlements = [];
             let safeSites = [];
             let summary = null;
+            const dataFallbacks = [];
 
             if (settlementRes.status === "fulfilled" && settlementRes.value?.success && settlementRes.value?.data) {
                 summary = settlementRes.value.data;
@@ -92,23 +94,41 @@ export class OverviewView {
 
             if (relocationRes.status === "fulfilled" && relocationRes.value?.success && relocationRes.value?.data) {
                 const decData = relocationRes.value.data;
-                const decisionsList = decData.decisions || (Array.isArray(decData) ? decData : []);
+                const decisionsList = decData.decisions || decData.explanations || (Array.isArray(decData) ? decData : []);
                 if (decisionsList.length > 0) {
                     settlements = decisionsList.map(d => ({
-                        habitationId: d.habitationId || d.originHabitationId,
-                        settlementName: d.originHabitationName || d.habitationName || d.habitationId,
-                        district: this.state.district,
-                        population: d.requiredCapacity || d.allocatedPopulation || 250,
-                        riskScore: d.riskExplanation?.priorityScore || d.riskScore || 0.85,
-                        priorityScore: d.priorityScore || 0.85,
-                        priorityLevel: d.priorityLevel || "IMMEDIATE",
-                        exposureTier: d.priorityLevel === "IMMEDIATE" ? "CRITICAL" : "HIGH",
-                        isRedZone: d.priorityLevel === "IMMEDIATE",
-                        recommendedSiteId: d.primaryDestinationId || d.destinationSiteId,
-                        recommendedSiteName: d.primaryDestinationName || d.destinationSiteName || "Designated Safe Shelter",
-                        transitDistanceKm: d.transitDistanceKm || 2.50
+                        habitationId: d.habitationId || d.originHabitationId || `HAB-${d.id || "001"}`,
+                        settlementName: d.originHabitationName || d.habitationName || d.settlementName || d.habitationId,
+                        district: d.district || this.state.district,
+                        population: d.requiredCapacity || d.allocatedPopulation || d.population || d.vulnerablePopulation || 250,
+                        riskScore: d.riskExplanation?.priorityScore || d.riskScore || d.priorityScore || 0.85,
+                        priorityScore: d.priorityScore || d.riskExplanation?.priorityScore || 0.85,
+                        priorityLevel: d.priorityLevel || (d.priorityClassification?.tierName) || "IMMEDIATE",
+                        exposureTier: d.priorityLevel === "IMMEDIATE" ? "CRITICAL" : (d.exposureTier || "HIGH"),
+                        isRedZone: d.priorityLevel === "IMMEDIATE" || d.isRedZone || false,
+                        recommendedSiteId: d.primaryDestinationId || d.destinationSiteId || (d.recommendedSite?.siteId),
+                        recommendedSiteName: d.primaryDestinationName || d.destinationSiteName || (d.recommendedSite?.siteName) || "Designated Safe Shelter",
+                        transitDistanceKm: d.transitDistanceKm || d.distanceKm || 2.50
                     }));
                 }
+            }
+
+            // If decisions list is empty but district settlement exposure has settlements, map them
+            if (settlements.length === 0 && summary?.settlements?.length > 0) {
+                settlements = summary.settlements.slice(0, 15).map(s => ({
+                    habitationId: `SETTLE-${s.settlementId}`,
+                    settlementName: s.settlementName,
+                    district: s.districtName || this.state.district,
+                    population: s.totalPopulation || 250,
+                    riskScore: s.settlementExposureScore != null ? s.settlementExposureScore : 0.5,
+                    priorityScore: s.settlementExposureScore != null ? s.settlementExposureScore : 0.5,
+                    priorityLevel: s.exposureCategory === "VERY_HIGH" ? "IMMEDIATE" : (s.exposureCategory === "HIGH" ? "SHORT_TERM" : "MEDIUM_TERM"),
+                    exposureTier: s.exposureCategory || "MODERATE",
+                    isRedZone: s.exposureCategory === "VERY_HIGH" || s.exposureCategory === "HIGH",
+                    recommendedSiteId: null,
+                    recommendedSiteName: "Pending Allocation",
+                    transitDistanceKm: s.distanceMeters ? Number((s.distanceMeters / 1000).toFixed(2)) : 0
+                }));
             }
 
             if (safeSiteRes.status === "fulfilled" && safeSiteRes.value?.success && safeSiteRes.value?.data) {
@@ -116,20 +136,24 @@ export class OverviewView {
                 safeSites = Array.isArray(siteData) ? siteData : (siteData.sites || []);
             }
 
-            // If backend is offline during development, utilize verified fixtures
+            // If backend is offline or returns empty during development, utilize verified fixtures
             if (settlements.length === 0) {
                 settlements = MOCK_SETTLEMENTS;
+                dataFallbacks.push("settlement and relocation results");
             }
             if (safeSites.length === 0) {
                 safeSites = MOCK_SAFE_SITES;
+                dataFallbacks.push("safe-site results");
             }
             if (!summary) {
                 summary = MOCK_DISTRICT_SUMMARY;
+                dataFallbacks.push("district summary");
             }
 
             this.state.settlements = settlements;
             this.state.safeSites = safeSites;
             this.state.summary = summary;
+            this.state.dataFallbacks = dataFallbacks;
             this.state.isLoading = false;
 
             // Render live content
@@ -156,11 +180,29 @@ export class OverviewView {
         const highRiskCount = settlements.filter(s => s.priorityLevel === "IMMEDIATE" || s.priorityLevel === "SHORT_TERM").length;
         const redZoneCount = settlements.filter(s => s.isRedZone).length;
         const totalEvacuees = settlements.reduce((sum, s) => sum + (s.population || 0), 0);
-        const totalShelterCapacity = safeSites.reduce((sum, s) => sum + (s.totalCapacity || 0), 0);
-        const availableCapacity = safeSites.reduce((sum, s) => sum + (s.availableCapacity || 0), 0);
-        const capacityUtilizationPct = totalShelterCapacity > 0
+        const hasNumericValue = value =>
+            value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+        const capacityReportedSites = safeSites.filter(s =>
+            hasNumericValue(s.totalCapacity) && hasNumericValue(s.availableCapacity)
+        );
+        const capacityDataAvailable = capacityReportedSites.length > 0;
+        const capacityDataComplete = safeSites.length > 0 && capacityReportedSites.length === safeSites.length;
+        const totalShelterCapacity = capacityReportedSites.reduce((sum, s) => sum + Number(s.totalCapacity), 0);
+        const availableCapacity = capacityReportedSites.reduce((sum, s) => sum + Number(s.availableCapacity), 0);
+        const capacityUtilizationPct = capacityDataComplete && totalShelterCapacity > 0
             ? Math.round(((totalShelterCapacity - availableCapacity) / totalShelterCapacity) * 100)
-            : 0;
+            : null;
+        const totalShelterCapacityLabel = capacityDataAvailable
+            ? `${totalShelterCapacity.toLocaleString()}${capacityDataComplete ? "" : "*"}`
+            : "Unknown";
+        const availableCapacityLabel = capacityDataAvailable
+            ? `${availableCapacity.toLocaleString()}${capacityDataComplete ? "" : "*"}`
+            : "Unknown";
+        const capacitySubtitle = capacityUtilizationPct !== null
+            ? `${100 - capacityUtilizationPct}% available`
+            : capacityDataAvailable
+                ? (capacityDataComplete ? "Capacity totals unavailable" : `Partial capacity data (${capacityReportedSites.length}/${safeSites.length} sites)`)
+                : "Capacity data unavailable";
 
         // 1. KPI Row
         const kpiRowHtml = `
@@ -188,10 +230,10 @@ export class OverviewView {
                 })}
                 ${StatCard.render({
                     label: "AVAILABLE SAFE CAPACITY",
-                    value: availableCapacity.toLocaleString(),
+                    value: availableCapacityLabel,
                     icon: "",
-                    status: availableCapacity >= totalEvacuees ? "safe" : "warning",
-                    subtitle: `${100 - capacityUtilizationPct}% available`
+                    status: capacityUtilizationPct === null ? "neutral" : (availableCapacity >= totalEvacuees ? "safe" : "warning"),
+                    subtitle: capacitySubtitle
                 })}
             </div>
         `;
@@ -364,15 +406,15 @@ export class OverviewView {
                             </div>
                             <div class="summary-metric-row">
                                 <span class="summary-metric-label">Total Bed Capacity:</span>
-                                <span class="summary-metric-val">${totalShelterCapacity.toLocaleString()}</span>
+                                <span class="summary-metric-val">${totalShelterCapacityLabel}</span>
                             </div>
                             <div class="summary-metric-row">
                                 <span class="summary-metric-label">Available Headroom:</span>
-                                <span class="summary-metric-val" style="color: var(--status-safe-text); font-weight: 700;">${availableCapacity.toLocaleString()}</span>
+                                <span class="summary-metric-val" style="color: var(--status-safe-text); font-weight: 700;">${availableCapacityLabel}</span>
                             </div>
                             <div class="summary-metric-row">
                                 <span class="summary-metric-label">Capacity Utilization:</span>
-                                <span class="summary-metric-val">${capacityUtilizationPct}%</span>
+                                <span class="summary-metric-val">${capacityUtilizationPct === null ? "Unknown" : `${capacityUtilizationPct}%`}</span>
                             </div>
                         </div>
                     `
@@ -380,8 +422,16 @@ export class OverviewView {
             </div>
         `;
 
+        const fallbackWarningHtml = (this.state.dataFallbacks || []).length > 0 ? `
+            <div role="status" style="padding: 12px 16px; border: 1px solid var(--border-default); border-left: 3px solid var(--status-warning-text); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-secondary); font-size: 0.82rem;">
+                <strong style="color: var(--text-primary);">Demo fallback data active.</strong>
+                Sample figures are being shown for ${this.state.dataFallbacks.join(", ")} because usable API results were not returned. Verify live services and database data before relying on these figures.
+            </div>
+        ` : "";
+
         return `
             <div style="display: flex; flex-direction: column; gap: var(--space-5);">
+                ${fallbackWarningHtml}
                 ${actionBannerHtml}
                 ${kpiRowHtml}
                 ${SectionHeader.render({
