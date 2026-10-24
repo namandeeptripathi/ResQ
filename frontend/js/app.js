@@ -5,7 +5,7 @@
  */
 import { Header } from "./components/Header.js";
 import { Navigation } from "./components/Navigation.js";
-import { Router } from "./router/router.js?v=resq-branding-20261024-2";
+import { Router } from "./router/router.js?v=resq-capacity-title-20261024-3";
 
 // View Imports
 import { OverviewView } from "./views/OverviewView.js";
