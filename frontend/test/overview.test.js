@@ -64,5 +64,12 @@ export async function runOverviewTests() {
     assert.ok(!unknownCapacityHtml.includes("100% available"), "Dashboard must not imply full availability without data");
     view.state.safeSites = originalSafeSites;
 
+    // Test 7: Fallback fixture data must be labelled in the rendered dashboard.
+    view.state.dataFallbacks = ["settlement and relocation results"];
+    const fallbackHtml = view.renderDashboardContent();
+    assert.ok(fallbackHtml.includes("Demo fallback data active"), "Fallback data must be labelled");
+    assert.ok(fallbackHtml.includes("Verify live services and database data"), "Fallback warning must explain validation requirement");
+    view.state.dataFallbacks = [];
+
     console.log("  ✅ All Command Center Tests Passed.");
 }
