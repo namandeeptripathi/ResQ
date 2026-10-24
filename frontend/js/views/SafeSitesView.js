@@ -19,6 +19,12 @@ import { ErrorState } from "../components/ErrorState.js";
 import { safeSiteService } from "../api/services/safeSiteService.js";
 import { MOCK_SAFE_SITES, MOCK_CAPACITY_SUMMARY } from "../api/fixtures/mockData.js";
 
+const hasNumericValue = value =>
+    value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+
+const formatCapacity = value =>
+    hasNumericValue(value) ? Number(value).toLocaleString() : "Unknown";
+
 export class SafeSitesView {
     constructor(context = {}) {
         this.context = context;
@@ -127,11 +133,34 @@ export class SafeSitesView {
             `
         });
 
-        // Capacity Dashboard KPIs
-        const totalCapacity = this.state.sites.reduce((acc, s) => acc + (s.totalCapacity || 0), 0) || 18500;
-        const totalAllocated = this.state.sites.reduce((acc, s) => acc + (s.allocatedCapacity || 0), 0) || 2790;
-        const totalAvailable = this.state.sites.reduce((acc, s) => acc + (s.availableCapacity || 0), 0) || 15710;
-        const utilPct = totalCapacity > 0 ? ((totalAllocated / totalCapacity) * 100).toFixed(1) : "15.1";
+        // Capacity Dashboard KPIs. Unknown source fields stay unknown instead of receiving demo defaults.
+        const capacityReportedSites = this.state.sites.filter(site =>
+            hasNumericValue(site.totalCapacity) &&
+            hasNumericValue(site.allocatedCapacity) &&
+            hasNumericValue(site.availableCapacity)
+        );
+        const capacityDataComplete = this.state.sites.length > 0 &&
+            capacityReportedSites.length === this.state.sites.length;
+        const totalCapacity = capacityReportedSites.reduce((acc, site) => acc + Number(site.totalCapacity), 0);
+        const totalAllocated = capacityReportedSites.reduce((acc, site) => acc + Number(site.allocatedCapacity), 0);
+        const totalAvailable = capacityReportedSites.reduce((acc, site) => acc + Number(site.availableCapacity), 0);
+        const utilPct = capacityDataComplete && totalCapacity > 0
+            ? ((totalAllocated / totalCapacity) * 100).toFixed(1)
+            : null;
+        const capacityDataLabel = capacityDataComplete
+            ? "Capacity values reported for all displayed sites"
+            : capacityReportedSites.length > 0
+                ? `Partial capacity data (${capacityReportedSites.length}/${this.state.sites.length} sites)`
+                : "Capacity data unavailable";
+        const totalCapacityLabel = capacityReportedSites.length > 0
+            ? `${totalCapacity.toLocaleString()}${capacityDataComplete ? "" : "*"}`
+            : "Unknown";
+        const totalAllocatedLabel = capacityReportedSites.length > 0
+            ? `${totalAllocated.toLocaleString()}${capacityDataComplete ? "" : "*"}`
+            : "Unknown";
+        const totalAvailableLabel = capacityReportedSites.length > 0
+            ? `${totalAvailable.toLocaleString()}${capacityDataComplete ? "" : "*"}`
+            : "Unknown";
 
         const kpisHtml = `
             <div class="overview-kpi-row">
@@ -144,24 +173,24 @@ export class SafeSitesView {
                 })}
                 ${StatCard.render({
                     label: "Total Safe Capacity",
-                    value: totalCapacity.toLocaleString(),
+                    value: totalCapacityLabel,
                     icon: "",
-                    subtitle: "Total bed capacity",
-                    status: "info"
+                    subtitle: capacityDataLabel,
+                    status: capacityDataComplete ? "info" : "neutral"
                 })}
                 ${StatCard.render({
                     label: "Allocated / Occupied",
-                    value: totalAllocated.toLocaleString(),
+                    value: totalAllocatedLabel,
                     icon: "",
-                    subtitle: `${utilPct}% capacity allocated`,
-                    status: "warning"
+                    subtitle: utilPct === null ? capacityDataLabel : `${utilPct}% capacity allocated`,
+                    status: utilPct === null ? "neutral" : "warning"
                 })}
                 ${StatCard.render({
                     label: "Available Safe Headroom",
-                    value: totalAvailable.toLocaleString(),
+                    value: totalAvailableLabel,
                     icon: "",
-                    subtitle: `${(100 - parseFloat(utilPct)).toFixed(1)}% headroom free`,
-                    status: "safe"
+                    subtitle: utilPct === null ? capacityDataLabel : `${(100 - parseFloat(utilPct)).toFixed(1)}% headroom free`,
+                    status: utilPct === null ? "neutral" : "safe"
                 })}
             </div>
         `;
@@ -229,11 +258,37 @@ export class SafeSitesView {
     }
 
     renderSiteCard(site) {
-        const total = site.totalCapacity || 5000;
-        const allocated = site.allocatedCapacity || 0;
-        const available = site.availableCapacity || (total - allocated);
-        const allocPct = total > 0 ? ((allocated / total) * 100).toFixed(0) : "0";
-        const availPct = total > 0 ? ((available / total) * 100).toFixed(0) : "100";
+        const capacityKnown =
+            hasNumericValue(site.totalCapacity) &&
+            hasNumericValue(site.allocatedCapacity) &&
+            hasNumericValue(site.availableCapacity);
+        const total = capacityKnown ? Number(site.totalCapacity) : null;
+        const allocated = capacityKnown ? Number(site.allocatedCapacity) : null;
+        const available = capacityKnown ? Number(site.availableCapacity) : null;
+        const allocPct = capacityKnown && total > 0 ? ((allocated / total) * 100).toFixed(0) : null;
+        const availPct = capacityKnown && total > 0 ? ((available / total) * 100).toFixed(0) : null;
+        const capacityHtml = capacityKnown && total > 0 ? `
+            <div class="capacity-utilization-container">
+                <div class="capacity-legend-row" style="margin-bottom: 6px;">
+                    <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-primary);">${formatCapacity(available)} beds available</span>
+                    <span style="font-size: 0.75rem; color: var(--text-secondary);">${formatCapacity(allocated)} / ${formatCapacity(total)} (${allocPct}% used)</span>
+                </div>
+                <div class="capacity-utilization-bar">
+                    <div class="capacity-bar-allocated" style="width: ${allocPct}%;"></div>
+                    <div class="capacity-bar-available" style="width: ${availPct}%;"></div>
+                </div>
+                <div class="capacity-legend-row" style="color: var(--text-tertiary); font-size: 0.72rem; margin-top: 4px;">
+                    <span>Allocated: ${formatCapacity(allocated)} beds</span>
+                    <span style="color: var(--status-safe-text); font-weight: 600;">Free: ${formatCapacity(available)} beds</span>
+                </div>
+            </div>
+        ` : `
+            <div class="capacity-utilization-container">
+                <div class="capacity-legend-row">
+                    <span style="font-size: 0.82rem; color: var(--text-secondary);">Capacity data not available from the current source.</span>
+                </div>
+            </div>
+        `;
 
         return Card.render({
             title: site.name || site.siteId,
@@ -244,21 +299,7 @@ export class SafeSitesView {
             }),
             bodyHtml: `
                 <div style="display: flex; flex-direction: column; gap: var(--space-3); font-size: 0.82rem;">
-                    <!-- Primary: Capacity Utilization -->
-                    <div class="capacity-utilization-container">
-                        <div class="capacity-legend-row" style="margin-bottom: 6px;">
-                            <span style="font-size: 0.88rem; font-weight: 700; color: var(--text-primary);">${available.toLocaleString()} beds available</span>
-                            <span style="font-size: 0.75rem; color: var(--text-secondary);">${allocated.toLocaleString()} / ${total.toLocaleString()} (${allocPct}% used)</span>
-                        </div>
-                        <div class="capacity-utilization-bar">
-                            <div class="capacity-bar-allocated" style="width: ${allocPct}%;"></div>
-                            <div class="capacity-bar-available" style="width: ${availPct}%;"></div>
-                        </div>
-                        <div class="capacity-legend-row" style="color: var(--text-tertiary); font-size: 0.72rem; margin-top: 4px;">
-                            <span>Allocated: ${allocated.toLocaleString()} beds</span>
-                            <span style="color: var(--status-safe-text); font-weight: 600;">Free: ${available.toLocaleString()} beds</span>
-                        </div>
-                    </div>
+                    ${capacityHtml}
 
                     <!-- Secondary: Facility Metadata & Logistics -->
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-tertiary); padding-top: var(--space-2); border-top: 1px solid var(--border-subtle);">
@@ -331,9 +372,9 @@ export class SafeSitesView {
         const modalContainer = document.getElementById("safe-site-modal-container");
         if (!modalContainer) return;
 
-        const total = site.totalCapacity || 5000;
-        const allocated = site.allocatedCapacity || 0;
-        const available = site.availableCapacity || (total - allocated);
+        const total = hasNumericValue(site.totalCapacity) ? Number(site.totalCapacity) : null;
+        const allocated = hasNumericValue(site.allocatedCapacity) ? Number(site.allocatedCapacity) : null;
+        const available = hasNumericValue(site.availableCapacity) ? Number(site.availableCapacity) : null;
 
         modalContainer.innerHTML = `
             <div class="site-modal-overlay" id="siteModalOverlay">
@@ -351,15 +392,15 @@ export class SafeSitesView {
                         <div class="grid-3">
                             <div style="background: var(--bg-surface); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); text-align: center;">
                                 <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase;">Total Capacity</div>
-                                <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-top: 2px;">${total.toLocaleString()}</div>
+                                <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin-top: 2px;">${formatCapacity(total)}</div>
                             </div>
                             <div style="background: var(--bg-surface); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); text-align: center;">
                                 <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase;">Allocated Beds</div>
-                                <div style="font-size: 1.25rem; font-weight: 800; color: var(--status-info-bright); margin-top: 2px;">${allocated.toLocaleString()}</div>
+                                <div style="font-size: 1.25rem; font-weight: 800; color: var(--status-info-bright); margin-top: 2px;">${formatCapacity(allocated)}</div>
                             </div>
                             <div style="background: var(--bg-surface); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); text-align: center;">
                                 <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase;">Available Headroom</div>
-                                <div style="font-size: 1.25rem; font-weight: 800; color: var(--status-safe-text); margin-top: 2px;">${available.toLocaleString()}</div>
+                                <div style="font-size: 1.25rem; font-weight: 800; color: var(--status-safe-text); margin-top: 2px;">${formatCapacity(available)}</div>
                             </div>
                         </div>
 
