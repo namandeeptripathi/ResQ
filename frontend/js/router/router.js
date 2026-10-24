@@ -1,5 +1,5 @@
 /**
- * Stage 8A — Client-Side Hash Router
+ * ResQ — Client-Side Hash Router
  *
  * Lightweight, robust routing engine supporting:
  * - Hash-based navigation (#/overview, #/map, #/safe-sites, #/relocation, #/settlements/:id)
@@ -161,7 +161,7 @@ export class Router {
         this.currentParams = matched.params;
         this.currentQuery = query;
 
-        // Update active class on navigation sidebar
+        // Update active class in the sidebar
         Navigation.updateActiveLink(matched.pattern);
 
         // Render matched view
@@ -184,9 +184,9 @@ export class Router {
                 await viewInstance.mount(container);
             }
 
-            // Update title
+            // Keep browser tab title aligned with the ResQ brand
             const titleSuffix = viewInstance.title ? ` | ${viewInstance.title}` : "";
-            document.title = `Disaster Decision Support Platform${titleSuffix}`;
+            document.title = `ResQ${titleSuffix}`;
 
         } catch (err) {
             console.error(`[Router] Error rendering route ${path}:`, err);
