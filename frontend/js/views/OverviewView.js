@@ -156,11 +156,29 @@ export class OverviewView {
         const highRiskCount = settlements.filter(s => s.priorityLevel === "IMMEDIATE" || s.priorityLevel === "SHORT_TERM").length;
         const redZoneCount = settlements.filter(s => s.isRedZone).length;
         const totalEvacuees = settlements.reduce((sum, s) => sum + (s.population || 0), 0);
-        const totalShelterCapacity = safeSites.reduce((sum, s) => sum + (s.totalCapacity || 0), 0);
-        const availableCapacity = safeSites.reduce((sum, s) => sum + (s.availableCapacity || 0), 0);
-        const capacityUtilizationPct = totalShelterCapacity > 0
+        const hasNumericValue = value =>
+            value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+        const capacityReportedSites = safeSites.filter(s =>
+            hasNumericValue(s.totalCapacity) && hasNumericValue(s.availableCapacity)
+        );
+        const capacityDataAvailable = capacityReportedSites.length > 0;
+        const capacityDataComplete = safeSites.length > 0 && capacityReportedSites.length === safeSites.length;
+        const totalShelterCapacity = capacityReportedSites.reduce((sum, s) => sum + Number(s.totalCapacity), 0);
+        const availableCapacity = capacityReportedSites.reduce((sum, s) => sum + Number(s.availableCapacity), 0);
+        const capacityUtilizationPct = capacityDataComplete && totalShelterCapacity > 0
             ? Math.round(((totalShelterCapacity - availableCapacity) / totalShelterCapacity) * 100)
-            : 0;
+            : null;
+        const totalShelterCapacityLabel = capacityDataAvailable
+            ? `${totalShelterCapacity.toLocaleString()}${capacityDataComplete ? "" : "*"}`
+            : "Unknown";
+        const availableCapacityLabel = capacityDataAvailable
+            ? `${availableCapacity.toLocaleString()}${capacityDataComplete ? "" : "*"}`
+            : "Unknown";
+        const capacitySubtitle = capacityUtilizationPct !== null
+            ? `${100 - capacityUtilizationPct}% available`
+            : capacityDataAvailable
+                ? (capacityDataComplete ? "Capacity totals unavailable" : `Partial capacity data (${capacityReportedSites.length}/${safeSites.length} sites)`)
+                : "Capacity data unavailable";
 
         // 1. KPI Row
         const kpiRowHtml = `
@@ -188,10 +206,10 @@ export class OverviewView {
                 })}
                 ${StatCard.render({
                     label: "AVAILABLE SAFE CAPACITY",
-                    value: availableCapacity.toLocaleString(),
+                    value: availableCapacityLabel,
                     icon: "",
-                    status: availableCapacity >= totalEvacuees ? "safe" : "warning",
-                    subtitle: `${100 - capacityUtilizationPct}% available`
+                    status: capacityUtilizationPct === null ? "neutral" : (availableCapacity >= totalEvacuees ? "safe" : "warning"),
+                    subtitle: capacitySubtitle
                 })}
             </div>
         `;
@@ -364,15 +382,15 @@ export class OverviewView {
                             </div>
                             <div class="summary-metric-row">
                                 <span class="summary-metric-label">Total Bed Capacity:</span>
-                                <span class="summary-metric-val">${totalShelterCapacity.toLocaleString()}</span>
+                                <span class="summary-metric-val">${totalShelterCapacityLabel}</span>
                             </div>
                             <div class="summary-metric-row">
                                 <span class="summary-metric-label">Available Headroom:</span>
-                                <span class="summary-metric-val" style="color: var(--status-safe-text); font-weight: 700;">${availableCapacity.toLocaleString()}</span>
+                                <span class="summary-metric-val" style="color: var(--status-safe-text); font-weight: 700;">${availableCapacityLabel}</span>
                             </div>
                             <div class="summary-metric-row">
                                 <span class="summary-metric-label">Capacity Utilization:</span>
-                                <span class="summary-metric-val">${capacityUtilizationPct}%</span>
+                                <span class="summary-metric-val">${capacityUtilizationPct === null ? "Unknown" : `${capacityUtilizationPct}%`}</span>
                             </div>
                         </div>
                     `
