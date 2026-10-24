@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # ==============================================================================
-# Hazard-Project — One-Click Localhost Launcher
-# Starts Database check, Spring Boot Backend (Port 8080), and Frontend (Port 3000)
+# ResQ — One-Command Local Launcher
+# Starts PostgreSQL check, Spring Boot backend (port 8080), and frontend (port 3000)
 # ==============================================================================
 
 set -e
@@ -16,7 +16,7 @@ FRONTEND_PID=""
 
 cleanup() {
     echo ""
-    echo "🛑 Shutting down Hazard-Project services..."
+    echo "🛑 Shutting down ResQ services..."
     if [ -n "$FRONTEND_PID" ]; then
         kill "$FRONTEND_PID" 2>/dev/null || true
     fi
@@ -30,7 +30,7 @@ cleanup() {
 trap cleanup SIGINT SIGTERM EXIT
 
 echo "======================================================="
-echo " 🚀 Starting Hazard-Project Local Environment"
+echo " 🚀 Starting ResQ Local Environment"
 echo "======================================================="
 
 # 1. Check PostgreSQL
@@ -84,7 +84,7 @@ echo "   ✅ Frontend is UP on http://localhost:3000"
 
 echo ""
 echo "======================================================="
-echo " 🎉 Hazard-Project is running!"
+echo " 🎉 ResQ is running!"
 echo " 👉 Web UI:       http://localhost:3000"
 echo " 👉 Backend API:  http://localhost:8080"
 echo " 👉 Swagger Docs: http://localhost:8080/swagger-ui/index.html"
@@ -98,4 +98,4 @@ if command -v open >/dev/null 2>&1; then
 fi
 
 # Keep script running and wait for background jobs
-wait $BACKEND_PID $FRONTEND_PID
+wait "$BACKEND_PID" "$FRONTEND_PID"
