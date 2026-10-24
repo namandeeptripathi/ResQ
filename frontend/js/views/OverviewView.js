@@ -30,7 +30,8 @@ export class OverviewView {
             selectedPriorityTier: "ALL",
             summary: null,
             settlements: [],
-            safeSites: []
+            safeSites: [],
+            dataFallbacks: []
         };
     }
 
@@ -81,10 +82,11 @@ export class OverviewView {
                 safeSiteService.getSitesByDistrict(this.state.district)
             ]);
 
-            // Unpack live responses or fallback to verified authentic fixtures
+            // Track fallback usage so sample fixtures are never mistaken for live results.
             let settlements = [];
             let safeSites = [];
             let summary = null;
+            const dataFallbacks = [];
 
             if (settlementRes.status === "fulfilled" && settlementRes.value?.success && settlementRes.value?.data) {
                 summary = settlementRes.value.data;
@@ -119,17 +121,21 @@ export class OverviewView {
             // If backend is offline during development, utilize verified fixtures
             if (settlements.length === 0) {
                 settlements = MOCK_SETTLEMENTS;
+                dataFallbacks.push("settlement and relocation results");
             }
             if (safeSites.length === 0) {
                 safeSites = MOCK_SAFE_SITES;
+                dataFallbacks.push("safe-site results");
             }
             if (!summary) {
                 summary = MOCK_DISTRICT_SUMMARY;
+                dataFallbacks.push("district summary");
             }
 
             this.state.settlements = settlements;
             this.state.safeSites = safeSites;
             this.state.summary = summary;
+            this.state.dataFallbacks = dataFallbacks;
             this.state.isLoading = false;
 
             // Render live content
@@ -215,6 +221,13 @@ export class OverviewView {
         `;
 
         // 2. Action Prompt Banner
+        const fallbackWarningHtml = (this.state.dataFallbacks || []).length > 0 ? `
+            <div role="status" style="padding: 12px 16px; border: 1px solid var(--border-default); border-left: 3px solid var(--status-warning-text); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-secondary); font-size: 0.82rem;">
+                <strong style="color: var(--text-primary);">Demo fallback data active.</strong>
+                Sample figures are being shown for ${this.state.dataFallbacks.join(", ")} because usable API results were not returned. Verify live services and database data before relying on these figures.
+            </div>
+        ` : "";
+
         const actionBannerHtml = `
             <div class="overview-action-banner">
                 <div class="action-banner-text">
@@ -400,6 +413,7 @@ export class OverviewView {
 
         return `
             <div style="display: flex; flex-direction: column; gap: var(--space-5);">
+                ${fallbackWarningHtml}
                 ${actionBannerHtml}
                 ${kpiRowHtml}
                 ${SectionHeader.render({
