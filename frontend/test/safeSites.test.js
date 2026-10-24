@@ -4,9 +4,34 @@
 import assert from "node:assert";
 import { SafeSitesView } from "../js/views/SafeSitesView.js";
 import { MOCK_SAFE_SITES } from "../js/api/fixtures/mockData.js";
+import { normalizeSafeSite } from "../js/api/services/safeSiteService.js";
 
 export async function runSafeSitesTests() {
     console.log("▶ Running Safe Sites Intelligence (SafeSitesView) Tests...");
+
+    // Source DTO field names are normalized, while missing capacity remains unknown.
+    const normalized = normalizeSafeSite({
+        siteId: "SITE-001",
+        siteName: "Source DTO Site",
+        capacity: 100,
+        allocatedOccupancy: 25,
+        availableCapacity: null
+    });
+    assert.strictEqual(normalized.name, "Source DTO Site");
+    assert.strictEqual(normalized.totalCapacity, 100);
+    assert.strictEqual(normalized.allocatedCapacity, 25);
+    assert.strictEqual(normalized.availableCapacity, 75);
+
+    const unknownCapacity = normalizeSafeSite({
+        siteId: "SITE-UNKNOWN",
+        siteName: "Unknown Capacity Site",
+        capacity: null,
+        allocatedOccupancy: null,
+        availableCapacity: null
+    });
+    assert.strictEqual(unknownCapacity.totalCapacity, null);
+    assert.strictEqual(unknownCapacity.allocatedCapacity, null);
+    assert.strictEqual(unknownCapacity.availableCapacity, null);
 
     const view = new SafeSitesView();
     view.state.sites = MOCK_SAFE_SITES;
