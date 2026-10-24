@@ -1,7 +1,7 @@
 /**
- * Stage 8A — Main Application Bootstrap
+ * ResQ — Main Application Bootstrap
  *
- * Initializes the AppShell, registers client routes, and kicks off navigation.
+ * Initializes the AppShell, registers client routes, and starts navigation.
  */
 import { Header } from "./components/Header.js";
 import { Navigation } from "./components/Navigation.js";
@@ -31,7 +31,7 @@ export class App {
      * Initializes the entire application.
      */
     init() {
-        console.info("[App] Initializing Disaster Decision Support Platform (Stage 8A)...");
+        console.info("[ResQ] Initializing geospatial disaster decision-support platform...");
 
         // 1. Render AppShell Markup
         this.renderShell();
@@ -51,7 +51,7 @@ export class App {
         // 4. Start Router
         this.router.init();
 
-        console.info("[App] Application mounted and routing active.");
+        console.info("[ResQ] Application mounted and routing active.");
     }
 
     /**
@@ -60,16 +60,16 @@ export class App {
     renderShell() {
         const root = document.getElementById("app");
         if (!root) {
-            console.error("[App] Root element #app not found in index.html.");
+            console.error("[ResQ] Root element #app not found in index.html.");
             return;
         }
 
         root.innerHTML = `
             <div class="app-shell">
                 ${Header.render({
-                    platformTitle: "NATIONAL DISASTER DECISION PLATFORM",
-                    platformSubtitle: "NDRF & SDMA Relocation Intelligence System",
-                    operationalMode: "ACTIVE MONITORING"
+                    platformTitle: "ResQ",
+                    platformSubtitle: "Geospatial Disaster Intelligence & Relocation Planning",
+                    operationalMode: "PLANNING MODE"
                 })}
                 <div class="app-body">
                     ${Navigation.render({
