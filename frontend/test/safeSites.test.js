@@ -61,6 +61,17 @@ export async function runSafeSitesTests() {
     assert.ok(gridHtml.includes("capacity-utilization-bar"), "Grid should render two-tone capacity bar");
     assert.ok(gridHtml.includes("Pupri Cyclone & Flood Relief Centre"), "Grid should contain Pupri Relief Centre");
 
+    // Unknown source capacity must not be replaced with a fabricated 5,000-bed value.
+    const unknownSiteHtml = view.renderSiteCard(normalizeSafeSite({
+        siteId: "SITE-UNKNOWN",
+        siteName: "Unknown Capacity Site",
+        capacity: null,
+        allocatedOccupancy: null,
+        availableCapacity: null
+    }));
+    assert.ok(unknownSiteHtml.includes("Capacity data not available from the current source."), "Unknown site capacity should be explicit");
+    assert.ok(!unknownSiteHtml.includes("5,000 beds available"), "Unknown capacity must not use the old 5,000-bed fallback");
+
     // Test 4: Filters
     view.state.selectedCategory = "EMERGENCY_SHELTER";
     view.applyFilters();
